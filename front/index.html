@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <h1>New Product</h1>
+    <input
+      id="name"
+      type="text"
+      placeholder="Name"
+    />
+    <input
+      id="description"
+      type="text"
+      placeholder="Description"
+    />
+    <input
+      id="category"
+      type="text"
+      placeholder="Category"
+    />
+    <input
+      id="model"
+      type="text"
+      placeholder="Model"
+    />
+    <button onclick="addProduct()">Add</button>
+
+    <h1>Add List</h1>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Model</th>
+        </tr>
+      </thead>
+      <tbody id="product-list"></tbody>
+    </table>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

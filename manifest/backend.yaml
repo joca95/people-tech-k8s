@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: <tu_usuario>/backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PGUSER
+          value: postgres
+        - name: PGPASSWORD
+          value: postgres
+        - name: PGDATABASE
+          value: products
+        - name: PGHOST
+          value: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: app
+spec:
+  ports:
+  - port: 5000
+  selector:
+    app: backend
