@@ -1,4 +1,4 @@
-const apiUrl = 'http://localhost:61183/api/products'; // Cambia esta URL si es necesario
+const apiUrl = 'https://localhost/api/products'; // Cambia esta URL si es necesario
 
 // Función para obtener los productos y actualizarlos en la tabla
 function loadProducts() {
@@ -15,6 +15,7 @@ function loadProducts() {
           <td>${product.description}</td>
           <td>${product.category}</td>
           <td>${product.model}</td>
+          <td><button onclick="deleteProduct(${product.id})" style="background-color: #c22626;">Delete</button></td>
         `;
         productList.appendChild(row);
       });
@@ -48,5 +49,19 @@ function addProduct() {
     .catch(err => console.error('Error adding product:', err));
 }
 
+// Función para eliminar un producto
+function deleteProduct(id) {
+
+  fetch(apiUrl+'/'+id, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    // body: JSON.stringify(product/),
+  })
+    .then(() => {
+      // Recargar los productos
+      loadProducts();
+    })
+    .catch(err => {console.error('Error deleting product:', err); alert('Error deleting product')});
+}
 // Cargar los productos cuando se carga la página
 document.addEventListener('DOMContentLoaded', loadProducts);

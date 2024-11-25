@@ -34,7 +34,10 @@ metadata:
   name: backend
   namespace: app
 spec:
+  # type: NodePort
   ports:
   - port: 5000
+    # targetPort: 5000
+    # nodePort: 30001
   selector:
     app: backend
