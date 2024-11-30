@@ -163,13 +163,13 @@ Si deseas probar la conectividad desde fuera del clúster:
 1. Obtén la IP del nodo trabajador:
 
 ```bash
-kubectl get nodes -o wide
+kubectl get pod -o wide -n app
 ```
 
 2. Intenta realizar una solicitud `curl`:
 
 ```bash
-curl <workernode-ip>:5000/api/products
+curl <pod-ip>:5000/api/products
 ```
 
 - **Nota**: Este comando fallará porque el Service de tipo `ClusterIP` no está expuesto externamente. Solo se puede acceder desde dentro del clúster.
@@ -229,7 +229,7 @@ curl <workernode-ip>:30001/api/products
 Si necesitas volver a una versión anterior del Deployment:
 
 ```bash
-kubectl rollout undo deployment backend
+kubectl rollout undo deployment backend -n app
 ```
 
 - **Explicación**: Este comando revierte el Deployment `backend` a la versión anterior, utilizando el historial almacenado por Kubernetes.

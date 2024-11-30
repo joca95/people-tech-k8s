@@ -1,4 +1,4 @@
-const apiUrl = 'https://localhost/api/products'; // Cambia esta URL si es necesario
+const apiUrl = 'https://be5bf4d4-b241-4b2d-be13-955cc4854008-10-244-24-173-30001.saci.r.killercoda.com/api/products'; // Cambia esta URL si es necesario
 
 // Función para obtener los productos y actualizarlos en la tabla
 function loadProducts() {

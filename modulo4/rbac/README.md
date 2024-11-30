@@ -37,22 +37,8 @@ Esto devolverá una cadena base64 que será utilizada en el archivo `user.yaml`.
 
 ### 2. Crear el `CertificateSigningRequest` (CSR)
 
-Crea un archivo `user.yaml` con la siguiente configuración, incluyendo la cadena base64 generada previamente.
+Modifica el manifiesto `user.yaml`, y en el atributo `request` coloca la cadena base64 generada previamente.
 
-**Contenido de `user.yaml`:**
-
-```yaml
-apiVersion: certificates.k8s.io/v1
-kind: CertificateSigningRequest
-metadata:
-  name: people-tech
-spec:
-  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K...
-  signerName: kubernetes.io/kube-apiserver-client
-  expirationSeconds: 86400  # Un día
-  usages:
-  - client auth
-```
 
 ### 3. Aplicar el CSR en Kubernetes
 
@@ -100,37 +86,17 @@ kubectl config set-context people-tech --cluster=kubernetes --user=people-tech
 
 ### 8. Crear Roles y Role Bindings
 
-1. **Crear un archivo de Role:** (ejemplo `role.yaml`)
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: development
-  name: pod-reader
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["list", "get"]
+Primero crearemos un namespace development
+```bash
+kubectl create namespace development
 ```
 
-2. **Crear un archivo de RoleBinding:** (ejemplo `rolebinding.yaml`)
+1. **Crear un archivo de Role:**
+Revisar manifiesto `role.yaml`
 
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: pod-reader-binding
-  namespace: development
-subjects:
-- kind: User
-  name: people-tech
-  apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: Role
-  name: pod-reader
-  apiGroup: rbac.authorization.k8s.io
-```
+2. **Crear un archivo de RoleBinding:**
+Revisar manifiesto `rolebinding.yaml`
+
 
 3. **Aplicar los archivos:**
 
