@@ -1,163 +1,198 @@
-### **Escenario**
-Supongamos que necesitamos crear un usuario llamado `developer` que:
-1. Tenga acceso solo al namespace `development`.
-2. Pueda:
-   - Leer y listar ConfigMaps y Secrets.
-   - Crear, listar y eliminar Pods.
+# Creación de un Usuario para Kubernetes con Roles y RoleBindings
+
+Este documento describe el proceso para crear un nuevo usuario en Kubernetes, asignarle roles y realizar pruebas de acceso para validar la configuración.
+
+## Requisitos previos
+
+1. Tener acceso al clúster de Kubernetes con privilegios de administrador.
+2. Herramientas como `kubectl` y `openssl` deben estar instaladas en el entorno local.
 
 ---
 
-### **Pasos**
+### 1. Generación de Clave Privada y Solicitud de Certificado
 
-#### **1. Crear un Certificado para el Usuario (`developer`)**
-Los usuarios en Kubernetes no se almacenan como recursos, sino que se autentican mediante certificados.
+Primero, generamos la clave privada para el usuario y luego creamos una solicitud de firma de certificado (CSR).
 
-1. **Crear un archivo de configuración OpenSSL:**
-Revisar el archivo `developer-openssl.cnf`
+1. **Generar la clave privada del usuario:**
 
-2. **Crear una clave privada y un CSR (Certificate Signing Request):**
 ```bash
-openssl genrsa -out developer.key 2048
-openssl req -new -key developer.key -out developer.csr -subj "/CN=developer" -config developer-openssl.cnf
-```
-
-3. **Firmar el certificado usando el certificado del clúster:**
-Utiliza el certificado y clave del clúster (normalmente `ca.crt` y `ca.key`):
-```bash
-openssl x509 -req -in developer.csr -CA /etc/kubernetes/pki/ca.crt -CAkey /etc/kubernetes/pki/ca.key -CAcreateserial -out developer.crt -days 365 -extensions v3_req -extfile developer-openssl.cnf
-```
-
-4. **Configurar el acceso en `kubectl`:**
-Agrega las credenciales al archivo `kubeconfig`: reemplazar <cluster-name>
-```bash
-kubectl config set-credentials developer --client-certificate=developer.crt --client-key=developer.key
-kubectl config set-context developer-context --cluster=<cluster-name> --namespace=development --user=developer
-```
-
-#### **2. Crear un Namespace**
-Primero, crea el namespace donde el usuario trabajará:
-```bash
-kubectl create namespace development
-```
-
-#### **3. Crear el Role**
-Define un `Role` con los permisos necesarios para los recursos en el namespace `development`, revisar el manifiesto `role.yaml`.
-
-Aplica el Role:
-```bash
-kubectl apply -f role.yaml
-```
-
-#### **4. Crear el RoleBinding**
-Asocia el Role `developer-role` con el usuario `developer`, revisar el manifiesto `rolebinding.yaml`.
-
-Aplica el RoleBinding:
-```bash
-kubectl apply -f rolebinding.yaml
-```
-
-#### **5. Probar los Permisos**
-Con el contexto configurado para el usuario `developer`:
-1. Cambia al contexto del usuario:
-```bash
-kubectl config use-context developer-context
-```
-2. Verifica que el usuario pueda listar ConfigMaps y Secrets:
-```bash
-kubectl get configmaps
-kubectl get secrets
-```
-3. Intenta crear un Pod:
-```bash
-kubectl run test-pod --image=nginx
-```
-4. Intenta acceder a recursos fuera de su permiso, como nodos:
-```bash
-kubectl get nodes
-```
-Este comando debería fallar, confirmando que los permisos están restringidos.
-
----
-
-### **Extensión: Asignar Permisos a Nivel de Clúster**
-Si el usuario necesita acceso a estos recursos en múltiples namespaces, usa un `ClusterRole` en lugar de un `Role`.
-
-1. **Crear un ClusterRole:**
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-    name: cluster-developer-role
-rules:
-- apiGroups: [""]
-    resources: ["configmaps", "secrets", "pods"]
-    verbs: ["get", "list", "create", "delete"]
-```
-Aplica el ClusterRole:
-```bash
-kubectl apply -f clusterrole.yaml
-```
-
-2. **Crear un ClusterRoleBinding:**
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-    name: cluster-developer-binding
-subjects:
-- kind: User
-    name: developer
-    apiGroup: rbac.authorization.k8s.io
-roleRef:
-    kind: ClusterRole
-    name: cluster-developer-role
-    apiGroup: rbac.authorization.k8s.io
-```
-Aplica el ClusterRoleBinding:
-```bash
-kubectl apply -f clusterrolebinding.yaml
-```
-
-
-
-
-
-
 openssl genrsa -out /root/people-tech.key 2048
+```
 
+2. **Crear la Solicitud de Certificado (CSR):**
 
+```bash
 openssl req -new -key /root/people-tech.key -out /root/people-tech.csr -subj "/CN=people-tech"
+```
 
+3. **Codificar la CSR en base64 para incluirla en el archivo YAML:**
 
+```bash
 cat /root/people-tech.csr | base64 | tr -d "\n"
+```
 
+Esto devolverá una cadena base64 que será utilizada en el archivo `user.yaml`.
 
-LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1d6Q0NBVU1DQVFBd0ZqRVVNQklHQTFVRUF3d0xjR1Z2Y0d4bExYUmxZMmd3Z2dFaU1BMEdDU3FHU0liMwpEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUURVTCtuc0RzamlyOFN3NmRwd1N6aUR2UWc2UkEzSTJ0UCtlaVI3CldIZ2VEMFRNTldzSGFYeTZwZG9JSGc5MEpSdTNPUU1tUERFWGZ4ZTNlQ0VhQXNFN2Nrbnh6REYwdGtKOUZUWnMKMGRXYktVeU1adXVMMVlaSnJsakxxcXhVOGVRUnlhTDljaytrWEEvVXA5SXdNUW4vZjc4TFJ3Q3RZZjhYZG5hcApZdHBWK0NpV255M0N0V1U0bHM0NC9DZlVvajVkZ2loeW9rVkdhWC8wQUU1blJ4L1h0ZVlPYWhqQ21rU2ZoQ3NvCkFvclo5Z1QwUVpxTEpRZUo5TVU1WlpLRzN4WERMRTVvMTlMbm94Qy9MY0N1ZDVUL1JHUU82ZWZGUk5GTnBRdjUKaDVWc2YrY3VUTk11UWNLdG5pM3I3RnVRVGxzN29pUE5lbFlTWnpFdHU5UGF5WjZqQWdNQkFBR2dBREFOQmdrcQpoa2lHOXcwQkFRc0ZBQU9DQVFFQXMvUDJMMjRKVzBObTh0K291ZlhML1JVSnc2bFhmNXA1aFNDYTNYUDl2UU1ECklpUzZvcDJPZmwxT1VVcVM4ZzFtUUNBR1M3SEZyV040RHM5czcyN3EzN3lDbXBhNS9iUzlmYUxkWmc0Q0dSdHgKT3NmMjFSK3ZaK25PMUFSRVFaWnR1OHltcUMxbk5GVER1M2Z5WVI2NkhQZCtCNVo4UkI2MUZUbDdNdnFmVFlONgp6Q2ZkYWo5eGZHbzFoSEUrTEZobHlCd054a0hFMC9UQnZRUURNV3Nua3dxcWxOTTBwbjNXSE8vWUY0MXZCeWExCktraC9jZU53azFEbC9rOFR3VC9GY1NCNGtmYXV4LzUxdFRZTkduZ2VsRnVqSk5rVWpjSjFPYlJEYjIwbEo5ZEcKVFVHaTQ3MjZ6d08rR2ppNWt6QkU3cjc1R2NnZG1Ja0d4SWlQeXpkR0F3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0tCg==
+---
 
+### 2. Crear el `CertificateSigningRequest` (CSR)
 
-user.yaml
+Crea un archivo `user.yaml` con la siguiente configuración, incluyendo la cadena base64 generada previamente.
 
+**Contenido de `user.yaml`:**
+
+```yaml
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
   name: people-tech
 spec:
-  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1d6Q0NBVU1DQVFBd0ZqRVVNQklHQTFVRUF3d0xjR1Z2Y0d4bExYUmxZMmd3Z2dFaU1BMEdDU3FHU0liMwpEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUURVTCtuc0RzamlyOFN3NmRwd1N6aUR2UWc2UkEzSTJ0UCtlaVI3CldIZ2VEMFRNTldzSGFYeTZwZG9JSGc5MEpSdTNPUU1tUERFWGZ4ZTNlQ0VhQXNFN2Nrbnh6REYwdGtKOUZUWnMKMGRXYktVeU1adXVMMVlaSnJsakxxcXhVOGVRUnlhTDljaytrWEEvVXA5SXdNUW4vZjc4TFJ3Q3RZZjhYZG5hcApZdHBWK0NpV255M0N0V1U0bHM0NC9DZlVvajVkZ2loeW9rVkdhWC8wQUU1blJ4L1h0ZVlPYWhqQ21rU2ZoQ3NvCkFvclo5Z1QwUVpxTEpRZUo5TVU1WlpLRzN4WERMRTVvMTlMbm94Qy9MY0N1ZDVUL1JHUU82ZWZGUk5GTnBRdjUKaDVWc2YrY3VUTk11UWNLdG5pM3I3RnVRVGxzN29pUE5lbFlTWnpFdHU5UGF5WjZqQWdNQkFBR2dBREFOQmdrcQpoa2lHOXcwQkFRc0ZBQU9DQVFFQXMvUDJMMjRKVzBObTh0K291ZlhML1JVSnc2bFhmNXA1aFNDYTNYUDl2UU1ECklpUzZvcDJPZmwxT1VVcVM4ZzFtUUNBR1M3SEZyV040RHM5czcyN3EzN3lDbXBhNS9iUzlmYUxkWmc0Q0dSdHgKT3NmMjFSK3ZaK25PMUFSRVFaWnR1OHltcUMxbk5GVER1M2Z5WVI2NkhQZCtCNVo4UkI2MUZUbDdNdnFmVFlONgp6Q2ZkYWo5eGZHbzFoSEUrTEZobHlCd054a0hFMC9UQnZRUURNV3Nua3dxcWxOTTBwbjNXSE8vWUY0MXZCeWExCktraC9jZU53azFEbC9rOFR3VC9GY1NCNGtmYXV4LzUxdFRZTkduZ2VsRnVqSk5rVWpjSjFPYlJEYjIwbEo5ZEcKVFVHaTQ3MjZ6d08rR2ppNWt6QkU3cjc1R2NnZG1Ja0d4SWlQeXpkR0F3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0tCg==
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K...
   signerName: kubernetes.io/kube-apiserver-client
-  expirationSeconds: 86400  # one day
+  expirationSeconds: 86400  # Un día
   usages:
   - client auth
+```
 
+### 3. Aplicar el CSR en Kubernetes
+
+Aplica el archivo `user.yaml` para crear el CSR en el clúster:
+
+```bash
 kubectl apply -f user.yaml
+```
 
+### 4. Aprobar el CSR
 
+Una vez que el CSR esté en el clúster, debe ser aprobado:
+
+```bash
 kubectl get csr
-
-
 kubectl certificate approve people-tech
+```
 
+### 5. Obtener el Certificado Aprobado
 
+Obtén el certificado aprobado y guárdalo en un archivo:
+
+```bash
 kubectl get csr/people-tech -o yaml
+kubectl get csr people-tech -o jsonpath='{.status.certificate}' | base64 -d > people-tech.crt
+```
 
+### 6. Configurar las Credenciales del Usuario
 
-kubectl get csr people-tech -o jsonpath='{.status.certificate}'| base64 -d > people-tech.crt
+Configura las credenciales del nuevo usuario `people-tech` en el archivo de configuración de `kubectl`:
+
+```bash
+kubectl config set-credentials people-tech --client-key=/root/people-tech.key --client-certificate=people-tech.crt --embed-certs=true
+```
+
+### 7. Configurar el Contexto del Usuario
+
+Configura el contexto para el usuario `people-tech`:
+
+```bash
+kubectl config set-context people-tech --cluster=kubernetes --user=people-tech
+```
+
+---
+
+### 8. Crear Roles y Role Bindings
+
+1. **Crear un archivo de Role:** (ejemplo `role.yaml`)
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: development
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "get"]
+```
+
+2. **Crear un archivo de RoleBinding:** (ejemplo `rolebinding.yaml`)
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: development
+subjects:
+- kind: User
+  name: people-tech
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+
+3. **Aplicar los archivos:**
+
+```bash
+kubectl apply -f role.yaml
+kubectl apply -f rolebinding.yaml
+```
+
+### 9. Realizar Pruebas
+
+1. **Cambiar a contexto del nuevo usuario:**
+
+```bash
+kubectl config use-context people-tech
+```
+
+2. **Verificar los contextos disponibles:**
+
+```bash
+kubectl config get-contexts
+```
+
+3. **Probar el acceso a los pods:**
+
+- Intentar listar los pods en el namespace `default` (Debe fallar):
+
+```bash
+kubectl get pod
+```
+
+El error esperado es:
+
+```
+Error from server (Forbidden): pods is forbidden: User "people-tech" cannot list resource "pods" in API group "" in the namespace "default"
+```
+
+- Intentar listar los pods en el namespace `kube-system` (Debe fallar):
+
+```bash
+kubectl get pod -n kube-system
+```
+
+El error esperado es:
+
+```
+Error from server (Forbidden): pods is forbidden: User "people-tech" cannot list resource "pods" in API group "" in the namespace "kube-system"
+```
+
+4. **Verificar los pods en el namespace `development`:**
+
+```bash
+kubectl get pod -n development
+```
+
+**Crear un pod en el namespace `development`:**
+
+```bash
+kubectl run pod1 --image=nginx:alpine -n development
+```
+
+**Verificar todos los recursos en el namespace `development`:**
+
+```bash
+kubectl get all -n development
+```
