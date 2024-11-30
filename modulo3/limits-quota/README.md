@@ -13,22 +13,16 @@
 ### Instalar API de Metricas
 Instalar el Api de métrica de kubernetes
 ```shell
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+wget https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
-
-Editar el deployment para clústers sin certificado
-```shell
-kubectl edit deployment metrics-server -n kube-system
-```
-
+Editar Deployment `metrics-server` agregando la siguiente línea en arg.
 ```yaml
 - --kubelet-insecure-tls
 ```
-
-Guardar archivo.
-
-Opcional:
-- Eliminar Pods.
+Aplicar componentes de metric server:
+```shell
+kubectl apply -f components.yaml
+```
 
 
 ## **Paso 1: Crear Namespaces**

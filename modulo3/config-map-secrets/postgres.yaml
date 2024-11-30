@@ -19,7 +19,7 @@ spec:
         configMapKeyRef:
           name: postgres-config
           key: POSTGRES_PORT
-    - name: POSTGRES_PORT
+    - name: POSTGRES_PASSWORD
       valueFrom:
         secretKeyRef:
           name: postgres-secret

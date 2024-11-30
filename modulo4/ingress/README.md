@@ -120,6 +120,7 @@ kind: Ingress
 metadata:
   name: nginx-ingress
 spec:
+  ingressClassName: nginx
   rules:
   - host: example.com  # El nombre de dominio para acceder al servicio
     http:

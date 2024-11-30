@@ -6,7 +6,7 @@ spec:
   containers:
   - name: config-container
     image: busybox
-    command: ["cat", "/etc/config/app-config.json"]
+    command: ["tail", "-f", "/dev/null"]
     volumeMounts:
     - name: config-volume
       mountPath: /etc/config
