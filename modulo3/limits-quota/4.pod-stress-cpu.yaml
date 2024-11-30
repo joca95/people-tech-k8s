@@ -18,7 +18,9 @@ spec:
         - /bin/sh
         - -c
         - |
+          trap "killall dd; exit" SIGTERM SIGINT
           echo "Starting CPU stress test";
-          while true; do
+          for i in $(seq 1 $(nproc)); do
             dd if=/dev/zero of=/dev/null &
           done
+          wait

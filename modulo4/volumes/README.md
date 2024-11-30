@@ -1,7 +1,3 @@
-Aquí tienes un caso práctico para configurar dos tipos de PersistentVolumes (PV) (uno manual y otro mediante StorageClass), un PersistentVolumeClaim (PVC) y usarlos en un Deployment con 2 Pods. Verificaremos que los datos persisten al recrear los Pods.
-
----
-
 ### **Caso Práctico**
 
 1. **Crear un PersistentVolume manual.**
@@ -12,6 +8,11 @@ Aquí tienes un caso práctico para configurar dos tipos de PersistentVolumes (P
 6. **Recrear un Pod y verificar la persistencia.**
 
 ---
+### **Consideraciones**
+- Los pods deben ser creados en el mismo nodo ya que los tipos de volumenes que se usaran estarán en host de nodo y no se puede compartir entre nodos, para resolver esto se pueden usar volúmenes de red, NFS, EFS (AWS).
+- Para KillerKoda, usar un escenario de un solo Node.
+- Para Play K8s, usar un solo Node.
+- Ubicarnos en el directorio `modulo4/volumes`
 
 ### **1. Crear un PersistentVolume manual**
 Crea el directorio en el nodo para que se use con `hostPath`:
@@ -119,40 +120,52 @@ kubectl get pv
 ### **5. Probar persistencia de datos**
 
 1. **Accede a uno de los Pods:**
-   ```bash
-   POD_NAME=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[0].metadata.name}")
-   kubectl exec -it $POD_NAME -- sh
-   ```
+```bash
+POD_NAME=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $POD_NAME -- sh
+```
 
 2. **Crea un archivo en el volumen compartido:**
-   ```bash
-   echo "Hello from Pod 1" > /usr/share/nginx/html/hello.txt
-   exit
-   ```
+```bash
+echo "Hello from Pod 1" > /usr/share/nginx/html/hello.txt
+cat /usr/share/nginx/html/hello.txt
+exit
+```
 
-3. **Accede al segundo Pod y verifica el archivo:**
-   ```bash
-   POD_NAME_2=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[1].metadata.name}")
-   kubectl exec -it $POD_NAME_2 -- sh
-   cat /usr/share/nginx/html/hello.txt
-   ```
+3. **Verifica el archivo en Host:**
+```bash
+cat /mnt/data/sc-pv/hello.txt
+```
+
+4. **Accede al segundo Pod y verifica el archivo:**
+```bash
+POD_NAME_2=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[1].metadata.name}")
+kubectl exec -it $POD_NAME_2 -- sh
+cat /usr/share/nginx/html/hello.txt
+exit
+```
 
 ---
 
 ### **6. Eliminar un Pod y verificar persistencia**
 
 1. **Eliminar un Pod:**
-   ```bash
-   kubectl delete pod $POD_NAME
-   ```
+```bash
+kubectl delete pod $POD_NAME
+```
+
+Visualizar pods
+```bash
+kubectl get pods
+```
 
 2. **Verifica que el Pod se recrea automáticamente y accede al nuevo Pod:**
-   ```bash
-   NEW_POD=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[0].metadata.name}")
-   kubectl exec -it $NEW_POD -- /bin/bash
-   ```
+```bash
+NEW_POD=$(kubectl get pods -l app=pvc-test -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $NEW_POD -- sh
+```
 
 3. **Comprueba que el archivo aún está presente:**
-   ```bash
-   cat /usr/share/nginx/html/hello.txt
-   ```
+```bash
+cat /usr/share/nginx/html/hello.txt
+```

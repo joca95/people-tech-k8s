@@ -149,8 +149,9 @@ Para verificar la conectividad interna hacia el Service de tipo `ClusterIP`, cre
 
 ```bash
 kubectl run test-pod --rm -it --image=busybox -- /bin/sh
-wget -qO- <service-ip>:5000/api/products
-wget -qO- backend:5000/api/products
+#wget -qO- <service-ip>:5000/api/products
+#wget -qO- <service-name>.<namespace>:5000/api/products
+wget -qO- backend.app:5000/api/products
 ```
 
 - **Explicación**: Este comando inicia un Pod temporal para probar el acceso al servicio backend. Si puedes realizar una solicitud a la API del backend desde este Pod, significa que el Service de tipo `ClusterIP` está funcionando correctamente dentro del clúster.
@@ -161,15 +162,15 @@ Si deseas probar la conectividad desde fuera del clúster:
 
 1. Obtén la IP del nodo trabajador:
 
-   ```bash
-   kubectl get nodes -o wide
-   ```
+```bash
+kubectl get nodes -o wide
+```
 
 2. Intenta realizar una solicitud `curl`:
 
-   ```bash
-   curl <workernode-ip>:5000/api/products
-   ```
+```bash
+curl <workernode-ip>:5000/api/products
+```
 
 - **Nota**: Este comando fallará porque el Service de tipo `ClusterIP` no está expuesto externamente. Solo se puede acceder desde dentro del clúster.
 
@@ -178,7 +179,7 @@ Si deseas probar la conectividad desde fuera del clúster:
 Para pruebas temporales desde fuera del clúster, puedes usar `port-forward`:
 
 ```bash
-kubectl -n app port-forward service/backend 5000:5000
+kubectl -n app port-forward --address 0.0.0.0 service/backend 5000:5000
 ```
 
 - **Explicación**: Este comando redirige el puerto 5000 del Service backend al puerto local 5000 para permitir el acceso externo temporal.
@@ -189,39 +190,39 @@ Para exponer el Service backend externamente de manera permanente:
 
 1. Edita el manifiesto `backend.yaml` y:
 
-   - Cambia la versión de la imagen del contenedor.
-   - Cambia el tipo del Service a `NodePort`.
-   - Descomenta las líneas correspondientes al tipo y los puertos del Service.
+- Cambia la versión de la imagen del contenedor.
+- Cambia el tipo del Service a `NodePort`.
+- Descomenta las líneas correspondientes al tipo y los puertos del Service.
 
 2. Aplica el manifiesto actualizado:
 
-   ```bash
-   kubectl apply -f backend.yaml
-   ```
+```bash
+kubectl apply -f backend.yaml
+```
 
 #### Verificar el Service Modificado
 
 1. Comprueba que el Service ahora es de tipo `NodePort`:
 
-   ```bash
-   kubectl get svc -n app
-   ```
+```bash
+kubectl get svc -n app
+```
 
-   - **Explicación**: Esto mostrará los detalles del Service, incluyendo el puerto externo asignado (por ejemplo, `30001`).
+- **Explicación**: Esto mostrará los detalles del Service, incluyendo el puerto externo asignado (por ejemplo, `30001`).
 
 2. Obtén la IP del nodo trabajador:
 
-   ```bash
-   kubectl get nodes -o wide
-   ```
+```bash
+kubectl get nodes -o wide
+```
 
 3. Prueba el acceso externo:
 
-   ```bash
-   curl <workernode-ip>:30001/api/products
-   ```
+```bash
+curl <workernode-ip>:30001/api/products
+```
 
-   - **Explicación**: Ahora el Service backend debería estar accesible externamente a través del puerto asignado.
+- **Explicación**: Ahora el Service backend debería estar accesible externamente a través del puerto asignado.
 
 ### 11 **Hacer Rollback de un Deployment**
 
@@ -248,20 +249,20 @@ kubectl create namespace bd
 1. Abre el archivo `postgres.yaml` y actualiza el campo `namespace` para que sea `bd`.
 2. Aplica el manifiesto:
 
-    ```bash
-    kubectl apply -f postgres.yaml
-    ```
+```bash
+kubectl apply -f postgres.yaml
+```
 
-    - **Explicación**: Este comando despliega PostgreSQL en el nuevo namespace `bd`.
+- **Explicación**: Este comando despliega PostgreSQL en el nuevo namespace `bd`.
 
 3. Modifica el archivo `backend.yaml` para actualizar la variable de entorno `PGHOST`. Cambia su valor a `postgres.bd`, que combina el nombre del servicio PostgreSQL y el namespace `bd`.
 4. Aplica el manifiesto del backend:
 
-    ```bash
-    kubectl apply -f backend.yaml
-    ```
+```bash
+kubectl apply -f backend.yaml
+```
 
-    - **Explicación**: Este comando asegura que el backend pueda conectarse a la base de datos en el namespace correcto.
+- **Explicación**: Este comando asegura que el backend pueda conectarse a la base de datos en el namespace correcto.
 
 #### Verificar la Conexión
 Accede a la aplicación y confirma que está conectada a una nueva base de datos limpia en el namespace `bd`.
