@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-stress-pod
+  namespace: stress-demo
+spec:
+  containers:
+  - name: memory-stress-container
+    image: joca95/k8s-peopletech-back:memory-stress
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"

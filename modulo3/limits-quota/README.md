@@ -1,16 +1,7 @@
-## **Contexto del caso práctico**
-### Escenario:
-- Una empresa tiene un clúster compartido donde múltiples equipos despliegan aplicaciones.
-- El equipo "Frontend" y el equipo "Backend" tienen restricciones diferentes para el uso de recursos:
-  - **Frontend**: Máximo de 1 CPU y 1 GiB de memoria por Pod.
-  - **Backend**: Máximo de 2 CPUs y 4 GiB de memoria por Pod.
-- El clúster tiene un límite total de recursos que cada equipo puede usar:
-  - **Frontend**: Máximo de 4 CPUs y 4 GiB de memoria en total.
-  - **Backend**: Máximo de 8 CPUs y 16 GiB de memoria en total.
+### Requisitos Previos
+#### Utlizar un cluster con suficientes recursos
 
----
-## **Requisitos Previos**
-### Instalar API de Metricas
+#### Instalar API de Métricas de Kubernetes
 Instalar el Api de métrica de kubernetes
 ```shell
 wget https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
@@ -23,91 +14,149 @@ Aplicar componentes de metric server:
 ```shell
 kubectl apply -f components.yaml
 ```
-
-
-## **Paso 1: Crear Namespaces**
-Creamos un namespace para cada equipo, revisar el manifiesto `namespaces.yaml`
-
-Ejecutar el comando:
-```shell
-kubectl apply -f namespaces.yaml
-```
-
----
-
-## **Paso 2: Configurar ResourceQuota**
-Limitamos los recursos totales que cada equipo puede consumir en su namespace.
-
-### ResourceQuota para "frontend" y "backend":
-Revisar el manifiesto `quotas.yaml`
-
-Ejecutar el comando:
-```shell
-kubectl apply -f quotas.yaml
-```
-
----
-
-## **Paso 3: Configurar LimitRange**
-Definimos los límites predeterminados y máximos para Pods en cada namespace.
-
-### LimitRange para "frontend" y "backend":
-
-Revisar el manifiesto `limits-range.yaml`
-
-Ejecutar el comando:
-```shell
-kubectl apply -f limits-range.yaml
-```
-
----
-
-## **Paso 4: Crear Pods con Requests & Limits**
-Desplegamos Pods en cada namespace para observar cómo se aplican las restricciones.
-
-### Pod para "frontend" y "backend":
-- El Pod frontend solicita 250m de CPU y 256Mi de memoria, y tiene un límite de 500m y 512Mi.
-- El Pod backend solicita 1 CPU y 1 GiB de memoria, y tiene un límite de 2 CPUs y 2 GiB.
-
-Revisar el manifiesto `pods.yaml`
-
-Ejecutar el comando:
-```shell
-kubectl apply -f pods.yaml
-```
-
----
-
-## **Validación**
-
-### 1. Validar ResourceQuota:
-Comprueba si los Pods respetan los límites totales del namespace.
-
+Visualizar la creación de componentes:
 ```bash
-kubectl describe resourcequota frontend-quota -n frontend
-kubectl describe resourcequota backend-quota -n backend
+kubectl get all -l k8s-app=metrics-server -n kube-system
 ```
 
-### 2. Validar LimitRange:
-Comprueba si los Pods respetan los límites por contenedor.
-
-```bash
-kubectl describe limitrange frontend-limits -n frontend
-kubectl describe limitrange backend-limits -n backend
-```
-
-### 3. Simular violaciones:
-Intenta crear un Pod que supere los límites configurados. Por ejemplo en el Pod `frontend` solicitar 2 CPU y 2GB de Memoria y como límites 3 CPUs y 3GB de Memoria.
-
-Revisar el manifiesto `pod-frontend-oversized.yaml`
-
-**Ejemplo (fallará):**
-Ejecutar el comando:
+Depués de unos minutos el API estará listo sirviendo métricas de nodos y pods.
 ```shell
-kubectl apply -f pod-frontend-oversized.yaml
+kubectl top nodes
 ```
 
-Error esperado:
+```shell
+kubectl top pod
 ```
-Error from server (Forbidden): Resource requests/limits exceed the quota
+
+### Paso 1: Crear un Namespace con LimitRange y ResourceQuota
+
+Primero, vamos a crear un **namespace** en Kubernetes donde aplicaremos los controles de recursos mediante `LimitRange` y `ResourceQuota`.
+
+#### 1.1 Crear el archivo YAML para el `Namespace`, `LimitRange` y `ResourceQuota`
+
+- **Namespace**: Revisar manifiesto `namespace.yaml`, `stress-demo` es el namespace donde vamos a aplicar los límites.
+Aplicar Namespace
+```bash
+kubectl apply -f namespace.yaml
+```
+Visualizar Namespace
+```bash
+kubectl get namespaces
+```
+- **LimitRange**: Revisar manifiesto `limitrange.yaml`
+  - Se especifican límites máximos y mínimos de recursos para CPU y memoria por contenedor.
+  - Se establecen valores predeterminados y de solicitud de recursos para los contenedores sin especificaciones.
+
+Aplicar LimitRange
+```bash
+kubectl apply -f limitrange.yaml
+```
+Visualizar LimitRange
+```bash
+kubectl get limitrange -n stress-demo
+```
+Describir LimitRange
+```bash
+kubectl describe limitrange limit-range -n stress-demo
+```
+
+- **ResourceQuota**: Revisar manifiesto `quota.yaml`. Se limita la cantidad total de CPU, memoria, y pods que pueden ser creados en el namespace `stress-demo`.
+
+Aplicar Quota
+```bash
+kubectl apply -f quota.yaml
+```
+Visualizar Quota
+```bash
+kubectl get resourcequota -n stress-demo
+```
+Describir Quota
+```bash
+kubectl describe resourcequota resource-quota -n stress-demo
+```
+
+
+### Paso 3: Crear varios Pods
+
+Crear Pod1 con nginx
+```bash
+kubectl run pod1 --image=nginx:alpine -n stress-demo
+```
+
+Crear Pod2 con nginx
+```bash
+kubectl run pod2 --image=nginx:alpine -n stress-demo
+```
+
+Crear Pod3 con nginx
+```bash
+kubectl run pod3 --image=nginx:alpine -n stress-demo
+```
+
+Debe salir error
+```
+Error from server (Forbidden): pods "pod3" is forbidden: exceeded quota: resource-quota, requested: limits.cpu=500m,pods=1, used: limits.cpu=1,pods=2, limited: limits.cpu=1,pods=2
+```
+
+Delete Pod2
+```bash
+kubectl delete pod pod2 -n stress-demo
+```
+
+Crear Pod2 con nginx con solicitando 3 CPUs
+```bash
+kubectl apply -f pod-3cpu.yaml
+```
+
+Debe salir error
+```
+The Pod "pod2" is invalid: spec.containers[0].resources.requests: Invalid value: "3": must be less than or equal to cpu limit of 500m
+```
+
+### Paso 3: Crear los Pods para estrés de CPU y Memoria
+
+Ahora crearemos dos pods utilizando la imagen Docker `polinux/stress`, uno para estresar la CPU y otro para estresar la memoria.
+
+#### 3.1 Crear el archivo YAML para los Pods de CPU y Memoria
+
+- **Pod para estresar la CPU** (`cpu-stress-pod`): Revisar manifiesto `cpu-stress.yaml`
+  - Utiliza la imagen `polinux/stress`.
+  - Establece **requests** y **limits** para CPU y memoria.
+  - Ejecuta el comando `stress` para estresar 1 núcleo de CPU durante 3 minutos.
+
+
+Aplicar Pod
+```bash
+kubectl apply -f cpu-stress.yaml
+```
+Nos mostrará un error debido al ResourceQuota definido en este namespace
+```
+Error from server (Forbidden): error when creating "cpu-stress.yaml": pods "cpu-stress-pod" is forbidden: maximum cpu usage per Container is 1, but limit is 2
+```
+
+- **Pod para estresar la Memoria** (`memory-stress-pod`): Revisar manifiesto `memoria-stress.yaml`
+  - Ejecutará un script en python que consumirá la memoria del pod
+  - Establece las mismas restricciones de **requests** y **limits**.
+
+
+Aplicar Pod
+```bash
+kubectl apply -f memoria-stress.yaml
+```
+Visualizar Pod
+```bash
+kubectl get pod -n stress-demo
+```
+Revisar Métricas Pod
+```bash
+kubectl top pod -n stress-demo
+```
+
+Visualizar Quota
+```bash
+kubectl get resourcequota -n stress-demo
+```
+Describir Quota
+```bash
+kubectl describe resourcequota resource-quota -n stress-demo
 ```

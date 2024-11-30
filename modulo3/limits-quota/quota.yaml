@@ -5,8 +5,8 @@ metadata:
   namespace: stress-demo
 spec:
   hard:
-    requests.cpu: "2"
+    requests.cpu: "1"
     requests.memory: "1Gi"
-    limits.cpu: "4"
+    limits.cpu: "1"
     limits.memory: "2Gi"
     pods: "2"
