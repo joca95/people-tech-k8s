@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-use-secret
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-use-secret
+  template:
+    metadata:
+      labels:
+        app: app-use-secret
+    spec:
+      serviceAccountName: secret-store
+      containers:
+      - name: app-use-secret
+        image: joca95/peopletech-secrets:v2
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+          - name: secrets-store-inline
+            mountPath: /mnt/envs-secrets
+            readOnly: true
+        env:
+        - name: CREDENTIALS_DB
+          valueFrom:
+            secretKeyRef:
+              name: envs-test-secrets
+              key: SECRET_DATABASE
+        - name: CONFIG_VALUE
+          valueFrom:
+            secretKeyRef:
+              name: envs-test-secrets
+              key: PARAMETER_CONFIG  
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "aws-secrets"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-use-secret-service
+  namespace: default
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"  # Especifica que es un NLB
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"   # Especifica que es un NLB de internet
+spec:
+  type: LoadBalancer
+  selector:
+    app: app-use-secret
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000

@@ -1,0 +1,64 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-a
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app-a
+  name: deployment-app-a
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-a
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-a
+    spec:
+      containers:
+      - image: joca95/peopletech-secrets:app-a
+        imagePullPolicy: Always
+        name: app-a
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: app-a
+  name: service-app-a
+spec:
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: app-a
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: app-a
+  name: ingress-app-a
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/group.name: shared-alb
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /app-a
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+        - path: /app-a
+          pathType: Prefix
+          backend:
+            service:
+              name: service-app-a
+              port:
+                number: 80

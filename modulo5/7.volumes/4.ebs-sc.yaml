@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-sc
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3  # Tipo de volumen EBS (gp2, io1, sc1, st1)
+  fsType: ext4  # Tipo de sistema de archivos
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer

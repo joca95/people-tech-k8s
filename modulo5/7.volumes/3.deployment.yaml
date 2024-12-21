@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: default
+spec:
+  replicas: 2  # Crear dos réplicas del pod nginx
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: "/usr/share/nginx/html"  # Montar el PVC en esta ruta
+          name: ebs-storage
+      volumes:
+      - name: ebs-storage
+        persistentVolumeClaim:
+          claimName: ebs-pvc  # Usar el PVC creado anteriormente

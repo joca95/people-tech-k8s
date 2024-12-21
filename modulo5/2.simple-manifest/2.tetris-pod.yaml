@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tetris
+  namespace: default
+spec:
+  containers:
+  - name: tetris
+    image: joca95/peopletech-tetris:v1
+    ports:
+    - containerPort: 3000
